@@ -1,0 +1,140 @@
+#!/bin/bash
+# Upgrade script from buster to bullseye, covering mostly server usecases.
+# Assumes puppet is in active use.
+#
+# Joint effort by SynPro.solutions and Deduktiva GmbH.
+#
+# Parts of this script were inspired by
+# https://dsa.debian.org/howto/upgrade-to-bullseye/
+# https://dsa.debian.org/howto/upgrade-to-buster/
+# https://anarc.at/services/upgrades/buster/
+
+UPGRADE_FROM="buster"
+UPGRADE_TO="bullseye"
+DEPRECATED_PACKAGES="ifupdown"
+
+is_package_installed() {
+  test -n "$(dpkg-query -f '${Version}' -W $1 2>/dev/null)"
+}
+
+set -u
+set -x
+
+if [ "$(id -u 2>/dev/null)" != 0 ] ; then
+  echo "Error: please run this script with uid 0 (root)." >&2
+  exit 1
+fi
+
+export LC_ALL=C.UTF-8
+export DEBIAN_FRONTEND=noninteractive
+export DEBCONF_NONINTERACTIVE_SEEN=true
+export APT_LISTCHANGES_FRONTEND=mail
+
+echo "Starting at $(date)"
+cat /etc/debian_version
+
+if dpkg --audit | grep -q '.' ; then
+  echo "Error: dpkg --audit reports problems. Please fix before continuing. ">&2
+  exit 1
+fi
+
+echo "Checking for not properly installed packages."
+if dpkg --list | grep '^[a-z][a-z] ' | grep -v '^ii' | grep -v '^rc' | grep '.' ; then
+  echo "Error: the packages listed above are not properly installed. Please fix before continuing." >&2
+  exit 1
+fi
+
+etckeeper commit -m "${UPGRADE_FROM}, before upgrade to ${UPGRADE_TO}"
+
+if ! which apt-show-versions &>/dev/null ; then
+  echo "Ensuring dependencies are installed"
+  apt-get update
+  apt-get -y install apt-show-versions
+fi
+
+echo "# The following packages aren't shipped via enabled Debian ${UPGRADE_FROM} repositories:"
+apt-show-versions | grep -v "/${UPGRADE_FROM}" | grep -v 'not installed$'
+echo "# END"
+
+cat > /etc/needrestart/conf.d/upgrade_wip.conf << EOF
+# installed by $0 on $(date) to disable needrestart prompts during upgrades
+\$nrconf{kernelhints} = -1;
+EOF
+
+puppet agent --disable "updating Debian to ${UPGRADE_TO}, user: $(whoami)"
+
+sed -i "s#${UPGRADE_FROM}/updates#${UPGRADE_TO}-security#g" /etc/apt/sources.list /etc/apt/sources.list.d/*
+sed -i "s#${UPGRADE_FROM}#${UPGRADE_TO}#g" /etc/apt/sources.list /etc/apt/sources.list.d/*
+dpkg --clear-avail
+/usr/lib/dpkg/methods/apt/update /var/lib/dpkg/ apt apt
+apt-get -y install apt dpkg deborphan debian-security-support
+# Ensure openssh-server is updated first to avoid upgrade race
+if is_package_installed openssh-server; then
+  apt-get -y install openssh-server
+fi
+# Keep fdisk installed
+if is_package_installed fdisk; then
+  apt-get -y install fdisk
+fi
+
+apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" dist-upgrade
+
+etckeeper commit -m "first dist-upgrade to ${UPGRADE_TO} finished"
+
+apt-get clean
+
+puppet agent --enable
+puppet agent --test
+puppet agent --test
+
+etckeeper commit -m "executed puppet after upgrade to ${UPGRADE_TO}"
+
+dpkg --get-selections | awk '$2=="deinstall" {print $1}' && echo "really purge these [y/N]?" 
+if read -r ans && [ "$ans" = "y" ] ; then
+  dpkg --get-selections | awk '$2=="deinstall" {print $1}' | xargs dpkg --purge
+  echo "These are not at install:"
+  dpkg --get-selections | awk '$2!="install" {print $1}'
+fi
+
+apt-get clean
+apt-get -y --purge autoremove
+while deborphan -n | grep -q . ; do echo "Deborphan remove...."; apt-get purge $(deborphan -n); done
+dpkg --clear-avail
+apt-get -y --purge autoremove
+/usr/lib/dpkg/methods/apt/update /var/lib/dpkg/ apt apt
+
+etckeeper commit -m "post cleanup"
+
+apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" dist-upgrade
+
+etckeeper commit -m "another dist-upgrade run towards ${UPGRADE_TO}"
+
+puppet agent --test
+puppet agent --test
+
+rm -f /etc/needrestart/conf.d/upgrade_wip.conf
+
+etckeeper commit -m "finished upgrade to ${UPGRADE_TO}"
+
+if ! test -h /bin ; then
+  echo "System is not usrmerged yet, installing usrmerge"
+  apt-get install -y usrmerge
+  etckeeper commit -m "finished usrmerge after upgrade to ${UPGRADE_TO}"
+  apt-get remove --purge usrmerge
+fi
+apt-get clean
+apt-get --purge autoremove
+
+cat /etc/debian_version
+echo "Upgrade Finished at $(date)"
+
+for pkg in ${DEPRECATED_PACKAGES}; do
+  if is_package_installed "${pkg}"; then
+    echo "Warning: system uses deprecated package ifupdown"
+  fi
+done
+if grep /dev/sd /etc/fstab >/dev/null; then
+  echo "Warning: system uses unreliable sdX device names in /etc/fstab"
+fi
+
+echo "System ready for reboot now"
