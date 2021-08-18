@@ -89,12 +89,18 @@ puppet agent --test
 
 etckeeper commit -m "executed puppet after upgrade to ${UPGRADE_TO}"
 
-dpkg --get-selections | awk '$2=="deinstall" {print $1}' && echo "really purge these [y/N]?" 
-if read -r ans && [ "$ans" = "y" ] ; then
-  dpkg --get-selections | awk '$2=="deinstall" {print $1}' | xargs dpkg --purge
-  echo "These are not at install:"
-  dpkg --get-selections | awk '$2!="install" {print $1}'
+set +x
+DEINSTALL_PACKAGES=$(dpkg --get-selections | awk '$2=="deinstall" {print $1}')
+if [ -n "$DEINSTALL_PACKAGES" ]; then
+  echo "Some packages are to be deinstalled: ${DEINSTALL_PACKAGES}"
+  echo "really purge these [y/N]?"
+  if read -r ans && [ "$ans" = "y" ] ; then
+    dpkg --purge ${DEINSTALL_PACKAGES}
+    echo "These packages are not marked as 'install':"
+    dpkg --get-selections | awk '$2!="install" {print $1}'
+  fi
 fi
+set -s
 
 apt-get clean
 apt-get -y --purge autoremove
