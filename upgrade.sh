@@ -30,7 +30,7 @@ export DEBIAN_FRONTEND=noninteractive
 export DEBCONF_NONINTERACTIVE_SEEN=true
 export APT_LISTCHANGES_FRONTEND=mail
 
-echo "Starting at $(date)"
+echo -n "Starting at $(date), Debian Version is"
 cat /etc/debian_version
 
 if dpkg --audit | grep -q '.' ; then
@@ -132,8 +132,8 @@ fi
 apt-get clean
 apt-get --purge autoremove
 
+echo -n "Upgrade Finished at $(date), Debian Version is now: "
 cat /etc/debian_version
-echo "Upgrade Finished at $(date)"
 
 for pkg in ${DEPRECATED_PACKAGES}; do
   if is_package_installed "${pkg}"; then
