@@ -127,7 +127,7 @@ if ! test -h /bin ; then
   echo "System is not usrmerged yet, installing usrmerge"
   apt-get install -y usrmerge
   etckeeper commit -m "finished usrmerge after upgrade to ${UPGRADE_TO}"
-  apt-get remove --purge usrmerge
+  apt-get remove --purge -y usrmerge
 fi
 apt-get clean
 apt-get --purge autoremove
