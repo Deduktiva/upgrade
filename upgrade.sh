@@ -122,6 +122,7 @@ rm -f /etc/needrestart/conf.d/upgrade_wip.conf
 
 etckeeper commit -m "finished upgrade to ${UPGRADE_TO}"
 
+set +x
 if ! test -h /bin ; then
   echo "System is not usrmerged yet, installing usrmerge"
   apt-get install -y usrmerge
