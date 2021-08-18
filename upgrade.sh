@@ -52,8 +52,8 @@ if ! which apt-show-versions &>/dev/null ; then
   apt-get -y install apt-show-versions
 fi
 
-echo "# The following packages aren't shipped via enabled Debian ${UPGRADE_FROM} repositories:"
-apt-show-versions | grep -v "/${UPGRADE_FROM}" | grep -v 'not installed$'
+echo "# The following packages are not shipped via enabled Debian repositories:"
+apt-show-versions | grep -v "/${UPGRADE_FROM}" | grep -v "/${UPGRADE_TO}" | grep -v 'not installed$'
 echo "# END"
 
 cat > /etc/needrestart/conf.d/upgrade_wip.conf << EOF
