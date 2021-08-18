@@ -100,7 +100,7 @@ if [ -n "$DEINSTALL_PACKAGES" ]; then
     dpkg --get-selections | awk '$2!="install" {print $1}'
   fi
 fi
-set -s
+set -x
 
 apt-get clean
 apt-get -y --purge autoremove
