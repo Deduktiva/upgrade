@@ -17,6 +17,19 @@ is_package_installed() {
   test -n "$(dpkg-query -f '${Version}' -W $1 2>/dev/null)"
 }
 
+run_puppet() {
+  if command -v puppet >/dev/null; then
+    puppet agent "$@"
+  fi
+}
+
+run_puppet_test() {
+  # Reenable puppet and run it, twice. Often, apt sources.list changes will not work on the first run.
+  run_puppet --enable
+  run_puppet --test
+  run_puppet --test
+}
+
 set -u
 set -x
 
@@ -61,7 +74,7 @@ cat > /etc/needrestart/conf.d/upgrade_wip.conf << EOF
 \$nrconf{kernelhints} = -1;
 EOF
 
-puppet agent --disable "updating Debian to ${UPGRADE_TO}, user: $(whoami)"
+run_puppet --disable "updating Debian to ${UPGRADE_TO}, user: $(whoami)"
 
 sed -i "s#${UPGRADE_FROM}/updates#${UPGRADE_TO}-security#g" /etc/apt/sources.list /etc/apt/sources.list.d/*
 sed -i "s#${UPGRADE_FROM}#${UPGRADE_TO}#g" /etc/apt/sources.list /etc/apt/sources.list.d/*
@@ -78,16 +91,11 @@ if is_package_installed fdisk; then
 fi
 
 apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" dist-upgrade
-
 etckeeper commit -m "first dist-upgrade to ${UPGRADE_TO} finished"
 
 apt-get clean
 
-# Reenable puppet and run it, twice. Often, apt sources.list changes will not work on the first run.
-puppet agent --enable
-puppet agent --test
-puppet agent --test
-
+run_puppet_test
 etckeeper commit -m "executed puppet after upgrade to ${UPGRADE_TO}"
 
 set +x
@@ -116,8 +124,7 @@ apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-conf
 
 etckeeper commit -m "another dist-upgrade run towards ${UPGRADE_TO}"
 
-puppet agent --test
-puppet agent --test
+run_puppet_test
 
 rm -f /etc/needrestart/conf.d/upgrade_wip.conf
 
