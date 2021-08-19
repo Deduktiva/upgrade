@@ -137,7 +137,7 @@ cat /etc/debian_version
 
 for pkg in ${DEPRECATED_PACKAGES}; do
   if is_package_installed "${pkg}"; then
-    echo "Warning: system uses deprecated package ifupdown"
+    echo "Warning: system uses deprecated package ${pkg}"
   fi
 done
 if grep /dev/sd /etc/fstab >/dev/null; then
