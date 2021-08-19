@@ -1,0 +1,12 @@
+name: run an upgrade
+on: [push]
+jobs:
+  Step1:
+    runs-on: debian-buster
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: List files in the repository
+        run: |
+          cd ${{ github.workspace }} && bash upgrade.sh
+
