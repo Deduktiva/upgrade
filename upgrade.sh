@@ -98,6 +98,7 @@ etckeeper commit -m "first dist-upgrade to ${UPGRADE_TO} finished"
 
 apt-get clean
 
+# Reenable puppet and run it, twice. Often, apt sources.list changes will not work on the first run.
 puppet agent --enable
 puppet agent --test
 puppet agent --test
