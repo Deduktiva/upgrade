@@ -70,11 +70,11 @@ dpkg --clear-avail
 apt-get -y install apt dpkg deborphan debian-security-support
 # Ensure openssh-server is updated first to avoid upgrade race
 if is_package_installed openssh-server; then
-  apt-get -y install openssh-server
+  apt-get -y install -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" openssh-server
 fi
 # Keep fdisk installed
 if is_package_installed fdisk; then
-  apt-get -y install fdisk
+  apt-get -y install -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" fdisk
 fi
 
 apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" dist-upgrade
