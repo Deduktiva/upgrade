@@ -118,8 +118,6 @@ etckeeper commit -m "another dist-upgrade run towards ${UPGRADE_TO}"
 puppet agent --test
 puppet agent --test
 
-rm -f /etc/needrestart/conf.d/upgrade_wip.conf
-
 etckeeper commit -m "finished upgrade to ${UPGRADE_TO}"
 
 set +x
@@ -131,6 +129,8 @@ if ! test -h /bin ; then
 fi
 apt-get clean
 apt-get --purge autoremove
+
+rm -f /etc/needrestart/conf.d/upgrade_wip.conf
 
 echo -n "Upgrade Finished at $(date), Debian Version is now: "
 cat /etc/debian_version
