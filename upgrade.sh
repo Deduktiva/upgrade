@@ -14,7 +14,7 @@ UPGRADE_TO="bullseye"
 DEPRECATED_PACKAGES="ifupdown"
 
 is_package_installed() {
-  test -n "$(dpkg-query -f '${Version}' -W $1 2>/dev/null)"
+  test -n "$(dpkg-query -f '${Version}' -W "$1" 2>/dev/null)"
 }
 
 set -u
@@ -95,6 +95,7 @@ if [ -n "$DEINSTALL_PACKAGES" ]; then
   echo "Some packages are to be deinstalled: ${DEINSTALL_PACKAGES}"
   echo "really purge these [y/N]?"
   if read -r ans && [ "$ans" = "y" ] ; then
+    # shellcheck disable=SC2086
     dpkg --purge ${DEINSTALL_PACKAGES}
     echo "These packages are not marked as 'install':"
     dpkg --get-selections | awk '$2!="install" {print $1}'
@@ -104,7 +105,8 @@ set -x
 
 apt-get clean
 apt-get -y --purge autoremove
-while deborphan -n | grep -q . ; do echo "Deborphan remove...."; apt-get purge $(deborphan -n); done
+# shellcheck disable=SC2046
+while deborphan -n | grep -q . ; do echo "Deborphan remove...."; apt-get -y purge $(deborphan -n); done
 dpkg --clear-avail
 apt-get -y --purge autoremove
 /usr/lib/dpkg/methods/apt/update /var/lib/dpkg/ apt apt
