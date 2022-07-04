@@ -13,6 +13,21 @@ UPGRADE_FROM="buster"
 UPGRADE_TO="bullseye"
 DEPRECATED_PACKAGES="ifupdown"
 
+FORCE=false
+ASK_CONFIRMATION=""
+for i in "$@"
+do
+case $i in
+    --force)
+    FORCE=true
+    ASK_CONFIRMATION="-y"
+    ;;
+    *)
+            # unknown option
+    ;;
+esac
+done
+
 is_package_installed() {
   test -n "$(dpkg-query -f '${Version}' -W "$1" 2>/dev/null)"
 }
@@ -93,8 +108,8 @@ set +x
 DEINSTALL_PACKAGES=$(dpkg --get-selections | awk '$2=="deinstall" {print $1}')
 if [ -n "$DEINSTALL_PACKAGES" ]; then
   echo "Some packages are to be deinstalled: ${DEINSTALL_PACKAGES}"
-  echo "really purge these [y/N]?"
-  if read -r ans && [ "$ans" = "y" ] ; then
+  $FORCE || echo "really purge these [y/N]?"
+  if $FORCE || ( read -r ans && [ "$ans" = "y" ] ) ; then
     # shellcheck disable=SC2086
     dpkg --purge ${DEINSTALL_PACKAGES}
     echo "These packages are not marked as 'install':"
@@ -106,7 +121,7 @@ set -x
 apt-get clean
 apt-get -y --purge autoremove
 # shellcheck disable=SC2046
-while deborphan -n | grep -q . ; do echo "Deborphan remove...."; apt-get -y purge $(deborphan -n); done
+while deborphan -n | grep -q . ; do echo "Deborphan remove...."; apt-get "${ASK_CONFIRMATION}" purge $(deborphan -n); done
 dpkg --clear-avail
 apt-get -y --purge autoremove
 /usr/lib/dpkg/methods/apt/update /var/lib/dpkg/ apt apt
@@ -130,7 +145,7 @@ if ! test -h /bin ; then
   apt-get remove --purge -y usrmerge
 fi
 apt-get clean
-apt-get --purge autoremove
+apt-get --purge "${ASK_CONFIRMATION}" autoremove
 
 rm -f /etc/needrestart/conf.d/upgrade_wip.conf
 
