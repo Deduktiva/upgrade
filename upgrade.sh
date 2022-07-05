@@ -13,8 +13,23 @@ UPGRADE_FROM="buster"
 UPGRADE_TO="bullseye"
 DEPRECATED_PACKAGES="ifupdown"
 
+FORCE=false
+ASK_CONFIRMATION=""
+for i in "$@"
+do
+case $i in
+    --force)
+    FORCE=true
+    ASK_CONFIRMATION="-y"
+    ;;
+    *)
+            # unknown option
+    ;;
+esac
+done
+
 is_package_installed() {
-  test -n "$(dpkg-query -f '${Version}' -W $1 2>/dev/null)"
+  test -n "$(dpkg-query -f '${Version}' -W "$1" 2>/dev/null)"
 }
 
 set -u
@@ -70,11 +85,11 @@ dpkg --clear-avail
 apt-get -y install apt dpkg deborphan debian-security-support
 # Ensure openssh-server is updated first to avoid upgrade race
 if is_package_installed openssh-server; then
-  apt-get -y install openssh-server
+  apt-get -y install -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" openssh-server
 fi
 # Keep fdisk installed
 if is_package_installed fdisk; then
-  apt-get -y install fdisk
+  apt-get -y install -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" fdisk
 fi
 
 apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" dist-upgrade
@@ -93,8 +108,9 @@ set +x
 DEINSTALL_PACKAGES=$(dpkg --get-selections | awk '$2=="deinstall" {print $1}')
 if [ -n "$DEINSTALL_PACKAGES" ]; then
   echo "Some packages are to be deinstalled: ${DEINSTALL_PACKAGES}"
-  echo "really purge these [y/N]?"
-  if read -r ans && [ "$ans" = "y" ] ; then
+  $FORCE || echo "really purge these [y/N]?"
+  if $FORCE || ( read -r ans && [ "$ans" = "y" ] ) ; then
+    # shellcheck disable=SC2086
     dpkg --purge ${DEINSTALL_PACKAGES}
     echo "These packages are not marked as 'install':"
     dpkg --get-selections | awk '$2!="install" {print $1}'
@@ -104,7 +120,8 @@ set -x
 
 apt-get clean
 apt-get -y --purge autoremove
-while deborphan -n | grep -q . ; do echo "Deborphan remove...."; apt-get purge $(deborphan -n); done
+# shellcheck disable=SC2046
+while deborphan -n | grep -q . ; do echo "Deborphan remove...."; apt-get "${ASK_CONFIRMATION}" purge $(deborphan -n); done
 dpkg --clear-avail
 apt-get -y --purge autoremove
 /usr/lib/dpkg/methods/apt/update /var/lib/dpkg/ apt apt
@@ -118,8 +135,6 @@ etckeeper commit -m "another dist-upgrade run towards ${UPGRADE_TO}"
 puppet agent --test
 puppet agent --test
 
-rm -f /etc/needrestart/conf.d/upgrade_wip.conf
-
 etckeeper commit -m "finished upgrade to ${UPGRADE_TO}"
 
 set +x
@@ -130,7 +145,9 @@ if ! test -h /bin ; then
   apt-get remove --purge -y usrmerge
 fi
 apt-get clean
-apt-get --purge autoremove
+apt-get --purge "${ASK_CONFIRMATION}" autoremove
+
+rm -f /etc/needrestart/conf.d/upgrade_wip.conf
 
 echo -n "Upgrade Finished at $(date), Debian Version is now: "
 cat /etc/debian_version
