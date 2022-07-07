@@ -130,7 +130,7 @@ set -x
 apt-get clean
 apt-get -y --purge autoremove
 # shellcheck disable=SC2046
-while deborphan -n | grep -q . ; do echo "Deborphan remove...."; apt-get "${ASK_CONFIRMATION}" purge $(deborphan -n); done
+while deborphan -n | grep -q . ; do echo "Deborphan remove...."; apt-get purge "${ASK_CONFIRMATION}" $(deborphan -n); done
 dpkg --clear-avail
 apt-get -y --purge autoremove
 /usr/lib/dpkg/methods/apt/update /var/lib/dpkg/ apt apt
@@ -153,7 +153,7 @@ if ! test -h /bin ; then
   apt-get remove --purge -y usrmerge
 fi
 apt-get clean
-apt-get --purge "${ASK_CONFIRMATION}" autoremove
+apt-get --purge autoremove "${ASK_CONFIRMATION}"
 
 rm -f /etc/needrestart/conf.d/upgrade_wip.conf
 
