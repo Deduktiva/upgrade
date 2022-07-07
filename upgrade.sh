@@ -46,20 +46,20 @@ run_puppet_test() {
 }
 
 set -u
-set -x
 
 if [ "$(id -u 2>/dev/null)" != 0 ] ; then
   echo "Error: please run this script with uid 0 (root)." >&2
   exit 1
 fi
 
+echo -n "Starting at $(date), Debian Version is"
+cat /etc/debian_version
+set -x
+
 export LC_ALL=C.UTF-8
 export DEBIAN_FRONTEND=noninteractive
 export DEBCONF_NONINTERACTIVE_SEEN=true
 export APT_LISTCHANGES_FRONTEND=mail
-
-echo -n "Starting at $(date), Debian Version is"
-cat /etc/debian_version
 
 if dpkg --audit | grep -q '.' ; then
   echo "Error: dpkg --audit reports problems. Please fix before continuing. ">&2
