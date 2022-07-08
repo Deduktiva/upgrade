@@ -1,0 +1,12 @@
+name: shellcheck
+on: [push]
+jobs:
+  shellcheck:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Run shellcheck
+        run: |
+          shellcheck -V
+          shellcheck -a upgrade.sh
