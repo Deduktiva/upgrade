@@ -1,13 +1,12 @@
-name: run an upgrade
+name: shellcheck
 on: [push]
 jobs:
   Step1:
-    runs-on: debian-bullseye
+    runs-on: ubuntu-22.04
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
       - name: Run shellcheck
         run: |
-          apt install -y shellcheck
-          cd ${{ github.workspace }} && shellcheck upgrade.sh
-
+          sudo apt install -y shellcheck
+          shellcheck upgrade.sh
